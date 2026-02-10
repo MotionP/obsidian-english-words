@@ -1,4 +1,43 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl } from "obsidian";
+import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from "obsidian";
+import * as https from "https";
+
+// ── HTTPS helper (skip SSL verification for GigaChat) ───────
+
+function httpsRequest(options: {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body?: string;
+}): Promise<{ status: number; body: string }> {
+	return new Promise((resolve, reject) => {
+		const parsed = new URL(options.url);
+		const req = https.request(
+			{
+				hostname: parsed.hostname,
+				port: parsed.port || 443,
+				path: parsed.pathname + parsed.search,
+				method: options.method,
+				headers: options.headers,
+				rejectUnauthorized: false,
+			},
+			(res) => {
+				const chunks: Buffer[] = [];
+				res.on("data", (chunk: Buffer) => chunks.push(chunk));
+				res.on("end", () => {
+					resolve({
+						status: res.statusCode || 0,
+						body: Buffer.concat(chunks).toString("utf-8"),
+					});
+				});
+			}
+		);
+		req.on("error", reject);
+		if (options.body) {
+			req.write(options.body);
+		}
+		req.end();
+	});
+}
 
 // ── Settings ────────────────────────────────────────────────
 
@@ -49,7 +88,7 @@ function generateUUID(): string {
 }
 
 async function getAccessToken(credentials: string): Promise<string> {
-	const response = await requestUrl({
+	const response = await httpsRequest({
 		url: OAUTH_URL,
 		method: "POST",
 		headers: {
@@ -61,7 +100,10 @@ async function getAccessToken(credentials: string): Promise<string> {
 		body: "scope=GIGACHAT_API_PERS",
 	});
 
-	const data = response.json;
+	const data = JSON.parse(response.body);
+	if (!data.access_token) {
+		throw new Error(`GigaChat auth failed: ${response.body}`);
+	}
 	return data.access_token;
 }
 
@@ -107,7 +149,19 @@ function parseResponse(text: string): WordResult {
 async function lookupWord(word: string, credentials: string): Promise<WordResult> {
 	const token = await getAccessToken(credentials);
 
-	const response = await requestUrl({
+	const body = JSON.stringify({
+		model: "GigaChat-Pro",
+		temperature: 0.1,
+		messages: [
+			{ role: "system", content: SYSTEM_PROMPT },
+			{
+				role: "user",
+				content: `Please provide the translation, IPA transcription, and Russian pronunciation hint for the English word: **${word}**. If it's not an English word, note that in your response.`,
+			},
+		],
+	});
+
+	const response = await httpsRequest({
 		url: CHAT_URL,
 		method: "POST",
 		headers: {
@@ -115,20 +169,10 @@ async function lookupWord(word: string, credentials: string): Promise<WordResult
 			Accept: "application/json",
 			Authorization: `Bearer ${token}`,
 		},
-		body: JSON.stringify({
-			model: "GigaChat-Pro",
-			temperature: 0.1,
-			messages: [
-				{ role: "system", content: SYSTEM_PROMPT },
-				{
-					role: "user",
-					content: `Please provide the translation, IPA transcription, and Russian pronunciation hint for the English word: **${word}**. If it's not an English word, note that in your response.`,
-				},
-			],
-		}),
+		body,
 	});
 
-	const data = response.json;
+	const data = JSON.parse(response.body);
 	const content = data.choices[0].message.content;
 	return parseResponse(content);
 }
