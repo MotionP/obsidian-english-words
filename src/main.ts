@@ -60,6 +60,7 @@ const SYSTEM_PROMPT =
 	"You are a linguistic assistant. " +
 	"Your response must be structured as follows:\n" +
 	"- **word**: the English word or a message indicating it's not an English word.\n" +
+	"- **part_of_speech**: the part of speech in Russian (существительное, прилагательное, глагол, наречие, etc.).\n" +
 	"- **translation**: the Russian translation or a message indicating it's not an English word.\n" +
 	"- **transcription**: IPA phonetic transcription or a message indicating it's not an English word.\n" +
 	"- **pronunciation**: approximate Russian pronunciation hint or a message indicating it's not an English word.\n" +
@@ -69,6 +70,7 @@ const SYSTEM_PROMPT =
 	"If the input is not an English word, respond with 'This is not an English word.' for each field.\n\n" +
 	"Reply ONLY with the structured data, no extra text. Use exactly this format:\n" +
 	"word: <word>\n" +
+	"part_of_speech: <part of speech in Russian>\n" +
 	"translation: <translation>\n" +
 	"transcription: <transcription>\n" +
 	"pronunciation: <pronunciation>\n" +
@@ -109,6 +111,7 @@ async function getAccessToken(credentials: string): Promise<string> {
 
 interface WordResult {
 	word: string;
+	partOfSpeech: string;
 	translation: string;
 	transcription: string;
 	pronunciation: string;
@@ -134,6 +137,7 @@ function parseResponse(text: string): WordResult {
 
 	return {
 		word: result["word"] || "",
+		partOfSpeech: result["part_of_speech"] || "",
 		translation: result["translation"] || "",
 		transcription: result["transcription"] || "",
 		pronunciation: result["pronunciation"] || "",
@@ -178,15 +182,13 @@ async function lookupWord(word: string, credentials: string): Promise<WordResult
 }
 
 function formatMarkdown(result: WordResult): string {
-	let md = `\n## ${result.word}\n`;
-	md += `- **Перевод:** ${result.translation}\n`;
-	md += `- **Транскрипция:** ${result.transcription}\n`;
-	md += `- **Произношение:** ${result.pronunciation}\n\n`;
-	md += `**Примеры:**\n`;
-	md += `1. ${result.example1_en}\n   ${result.example1_ru}\n`;
-	md += `2. ${result.example2_en}\n   ${result.example2_ru}\n`;
-	md += `3. ${result.example3_en}\n   ${result.example3_ru}\n\n`;
-	md += `---\n`;
+	let md = `\nЧто означает ${result.partOfSpeech} ${result.word}?\n`;
+	md += `?\n`;
+	md += `Означает "${result.translation}" /${result.transcription}/ (${result.pronunciation})\n`;
+	md += `Примеры использования:\n`;
+	md += `${result.example1_en} — ${result.example1_ru},\n`;
+	md += `${result.example2_en} — ${result.example2_ru},\n`;
+	md += `${result.example3_en} — ${result.example3_ru}\n\n`;
 	return md;
 }
 

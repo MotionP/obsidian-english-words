@@ -75,7 +75,7 @@ var DEFAULT_SETTINGS = {
 };
 var OAUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
 var CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
-var SYSTEM_PROMPT = "You are a linguistic assistant. Your response must be structured as follows:\n- **word**: the English word or a message indicating it's not an English word.\n- **translation**: the Russian translation or a message indicating it's not an English word.\n- **transcription**: IPA phonetic transcription or a message indicating it's not an English word.\n- **pronunciation**: approximate Russian pronunciation hint or a message indicating it's not an English word.\n- **examples**: 3 common everyday example sentences using the word. Each example must have the sentence in English and its Russian translation. Choose sentences that are frequently used in daily life.\nIf the input is not an English word, respond with 'This is not an English word.' for each field.\n\nReply ONLY with the structured data, no extra text. Use exactly this format:\nword: <word>\ntranslation: <translation>\ntranscription: <transcription>\npronunciation: <pronunciation>\nexample1_en: <sentence>\nexample1_ru: <translation>\nexample2_en: <sentence>\nexample2_ru: <translation>\nexample3_en: <sentence>\nexample3_ru: <translation>";
+var SYSTEM_PROMPT = "You are a linguistic assistant. Your response must be structured as follows:\n- **word**: the English word or a message indicating it's not an English word.\n- **part_of_speech**: the part of speech in Russian (\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0435, \u043F\u0440\u0438\u043B\u0430\u0433\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0435, \u0433\u043B\u0430\u0433\u043E\u043B, \u043D\u0430\u0440\u0435\u0447\u0438\u0435, etc.).\n- **translation**: the Russian translation or a message indicating it's not an English word.\n- **transcription**: IPA phonetic transcription or a message indicating it's not an English word.\n- **pronunciation**: approximate Russian pronunciation hint or a message indicating it's not an English word.\n- **examples**: 3 common everyday example sentences using the word. Each example must have the sentence in English and its Russian translation. Choose sentences that are frequently used in daily life.\nIf the input is not an English word, respond with 'This is not an English word.' for each field.\n\nReply ONLY with the structured data, no extra text. Use exactly this format:\nword: <word>\npart_of_speech: <part of speech in Russian>\ntranslation: <translation>\ntranscription: <transcription>\npronunciation: <pronunciation>\nexample1_en: <sentence>\nexample1_ru: <translation>\nexample2_en: <sentence>\nexample2_ru: <translation>\nexample3_en: <sentence>\nexample3_ru: <translation>";
 function generateUUID() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
@@ -114,6 +114,7 @@ function parseResponse(text) {
   }
   return {
     word: result["word"] || "",
+    partOfSpeech: result["part_of_speech"] || "",
     translation: result["translation"] || "",
     transcription: result["transcription"] || "",
     pronunciation: result["pronunciation"] || "",
@@ -154,28 +155,20 @@ async function lookupWord(word, credentials) {
 }
 function formatMarkdown(result) {
   let md = `
-## ${result.word}
+\u0427\u0442\u043E \u043E\u0437\u043D\u0430\u0447\u0430\u0435\u0442 ${result.partOfSpeech} ${result.word}?
 `;
-  md += `- **\u041F\u0435\u0440\u0435\u0432\u043E\u0434:** ${result.translation}
+  md += `?
 `;
-  md += `- **\u0422\u0440\u0430\u043D\u0441\u043A\u0440\u0438\u043F\u0446\u0438\u044F:** ${result.transcription}
+  md += `\u041E\u0437\u043D\u0430\u0447\u0430\u0435\u0442 "${result.translation}" /${result.transcription}/ (${result.pronunciation})
 `;
-  md += `- **\u041F\u0440\u043E\u0438\u0437\u043D\u043E\u0448\u0435\u043D\u0438\u0435:** ${result.pronunciation}
+  md += `\u041F\u0440\u0438\u043C\u0435\u0440\u044B \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u044F:
+`;
+  md += `${result.example1_en} \u2014 ${result.example1_ru},
+`;
+  md += `${result.example2_en} \u2014 ${result.example2_ru},
+`;
+  md += `${result.example3_en} \u2014 ${result.example3_ru}
 
-`;
-  md += `**\u041F\u0440\u0438\u043C\u0435\u0440\u044B:**
-`;
-  md += `1. ${result.example1_en}
-   ${result.example1_ru}
-`;
-  md += `2. ${result.example2_en}
-   ${result.example2_ru}
-`;
-  md += `3. ${result.example3_en}
-   ${result.example3_ru}
-
-`;
-  md += `---
 `;
   return md;
 }
