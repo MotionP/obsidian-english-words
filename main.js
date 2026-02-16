@@ -71,7 +71,8 @@ function httpsRequest(options) {
 }
 var DEFAULT_SETTINGS = {
   gigachatCredentials: "",
-  filePath: "English Words.md"
+  filePath: "English Words.md",
+  gigachatModel: "GigaChat-Pro"
 };
 var OAUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
 var CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
@@ -126,10 +127,10 @@ function parseResponse(text) {
     example3_ru: result["example3_ru"] || ""
   };
 }
-async function lookupWord(word, credentials) {
+async function lookupWord(word, credentials, model) {
   const token = await getAccessToken(credentials);
   const body = JSON.stringify({
-    model: "GigaChat-Pro",
+    model,
     temperature: 0.1,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
@@ -204,7 +205,7 @@ var WordInputModal = class extends import_obsidian.Modal {
       this.close();
       new import_obsidian.Notice(`Translating "${word}"...`);
       try {
-        const result = await lookupWord(word, this.plugin.settings.gigachatCredentials);
+        const result = await lookupWord(word, this.plugin.settings.gigachatCredentials, this.plugin.settings.gigachatModel);
         const markdown = formatMarkdown(result);
         await this.plugin.appendToFile(markdown);
         new import_obsidian.Notice(`"${result.word}" saved to ${this.plugin.settings.filePath}`);
@@ -270,6 +271,12 @@ var EnglishWordsSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("GigaChat Credentials").setDesc("Authorization key from developers.sber.ru (base64)").addText(
       (text) => text.setPlaceholder("Enter your credentials").setValue(this.plugin.settings.gigachatCredentials).onChange(async (value) => {
         this.plugin.settings.gigachatCredentials = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("GigaChat Model").setDesc("Model name (e.g. GigaChat, GigaChat-Plus, GigaChat-Pro, GigaChat-Max)").addText(
+      (text) => text.setPlaceholder("GigaChat-Pro").setValue(this.plugin.settings.gigachatModel).onChange(async (value) => {
+        this.plugin.settings.gigachatModel = value;
         await this.plugin.saveSettings();
       })
     );

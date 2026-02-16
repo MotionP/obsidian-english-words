@@ -44,11 +44,13 @@ function httpsRequest(options: {
 interface EnglishWordsSettings {
 	gigachatCredentials: string;
 	filePath: string;
+	gigachatModel: string;
 }
 
 const DEFAULT_SETTINGS: EnglishWordsSettings = {
 	gigachatCredentials: "",
 	filePath: "English Words.md",
+	gigachatModel: "GigaChat-Pro",
 };
 
 // ── GigaChat API ────────────────────────────────────────────
@@ -150,11 +152,11 @@ function parseResponse(text: string): WordResult {
 	};
 }
 
-async function lookupWord(word: string, credentials: string): Promise<WordResult> {
+async function lookupWord(word: string, credentials: string, model: string): Promise<WordResult> {
 	const token = await getAccessToken(credentials);
 
 	const body = JSON.stringify({
-		model: "GigaChat-Pro",
+		model,
 		temperature: 0.1,
 		messages: [
 			{ role: "system", content: SYSTEM_PROMPT },
@@ -236,7 +238,7 @@ class WordInputModal extends Modal {
 			new Notice(`Translating "${word}"...`);
 
 			try {
-				const result = await lookupWord(word, this.plugin.settings.gigachatCredentials);
+				const result = await lookupWord(word, this.plugin.settings.gigachatCredentials, this.plugin.settings.gigachatModel);
 				const markdown = formatMarkdown(result);
 				await this.plugin.appendToFile(markdown);
 				new Notice(`"${result.word}" saved to ${this.plugin.settings.filePath}`);
@@ -324,6 +326,19 @@ class EnglishWordsSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.gigachatCredentials)
 					.onChange(async (value) => {
 						this.plugin.settings.gigachatCredentials = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("GigaChat Model")
+			.setDesc("Model name (e.g. GigaChat, GigaChat-Plus, GigaChat-Pro, GigaChat-Max)")
+			.addText((text) =>
+				text
+					.setPlaceholder("GigaChat-Pro")
+					.setValue(this.plugin.settings.gigachatModel)
+					.onChange(async (value) => {
+						this.plugin.settings.gigachatModel = value;
 						await this.plugin.saveSettings();
 					})
 			);
